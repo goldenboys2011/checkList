@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Resource Checklist</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(to right, #d0e9ff, #f0f8ff);
+      padding: 2rem;
+      color: #003366;
+    }
+
+    .checklist {
+      max-width: 600px;
+      margin: auto;
+      background: #ffffff;
+      padding: 1.5rem;
+      border-radius: 10px;
+      box-shadow: 0 8px 16px rgba(0, 0, 50, 0.1);
+    }
+
+    .checklist h2 {
+      text-align: center;
+      color: #0056b3;
+    }
+    .checklist h3 {
+      text-align: right;
+      margin-bottom: 1.5rem;
+      color: #0056b3;
+    }
+
+    .item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.2rem;
+      padding: 0.6rem 0.8rem;
+      border: 1px solid #d0e0ff;
+      border-radius: 8px;
+      background: #f8fbff;
+    }
+
+    .item label {
+      flex: 1;
+      margin-left: 10px;
+      font-weight: bold;
+    }
+
+    .item input[type="number"] {
+      width: 100px;
+      padding: 6px;
+      margin-left: 10px;
+      border-radius: 4px;
+      border: 1px solid #a0c8ff;
+      background: #ffffff;
+      color: #003366;
+    }
+
+    .item input[type="checkbox"] {
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      border: 2px solid #007bff;
+      border-radius: 4px;
+      background-color: white;
+      display: grid;
+      place-content: center;
+      margin-right: 8px;
+    }
+
+    .item input[type="checkbox"]::before {
+      content: "✔";
+      font-size: 14px;
+      color: #007bff;
+      transform: scale(0);
+      transition: transform 0.2s ease-in-out;
+    }
+
+    .item input[type="checkbox"]:checked::before {
+      transform: scale(1);
+    }
+
+    .item input[type="checkbox"]:disabled {
+      opacity: 1;
+      cursor: default;
+    }
+
+    .add-resource {
+      display: flex;
+      gap: 10px;
+      margin-top: 2rem;
+    }
+
+    .add-resource input {
+      padding: 8px;
+      flex: 1;
+      border-radius: 4px;
+      border: 1px solid #a0c8ff;
+    }
+
+    .add-resource button {
+      padding: 8px 16px;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .add-resource button:hover {
+      background-color: #0056b3;
+    }
+  </style>
+</head>
+<body>
+
+<div class="checklist">
+  <h2>Minecraft Resource Checklist</h2> <h3>- by golden ≧◡≦</h3>
+  <div id="resource-list"></div>
+
+  <div class="add-resource">
+    <input type="text" id="new-name" placeholder="Resource name">
+    <input type="number" id="new-total" placeholder="Amount needed" min="1">
+    <button onclick="addResource()">Add</button>
+  </div>
+</div>
+
+<script>
+  let resources = JSON.parse(localStorage.getItem('resources')) || [
+    { name: "Cobblestone", total: 400, have: 0 },
+    { name: "Iron", total: 1360, have: 0 },
+    { name: "Planks", total: 1258, have: 0 }
+  ];
+
+  function saveResources() {
+    localStorage.setItem('resources', JSON.stringify(resources));
+  }
+
+  function renderResources() {
+    const list = document.getElementById("resource-list");
+    list.innerHTML = '';
+
+    resources.forEach((res, index) => {
+      const item = document.createElement("div");
+      item.className = "item";
+
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.disabled = true;
+      checkbox.checked = res.have >= res.total;
+
+      const label = document.createElement("label");
+      label.innerHTML = `${res.name} (${res.total}): <span id="remaining-${index}">${res.total - res.have}</span> left`;
+
+      const input = document.createElement("input");
+      input.type = "number";
+      input.min = 0;
+      input.value = res.have;
+      input.placeholder = "You have";
+      input.addEventListener("input", () => {
+        const value = parseInt(input.value) || 0;
+        res.have = value;
+        document.getElementById(`remaining-${index}`).textContent = Math.max(res.total - res.have, 0);
+        checkbox.checked = res.have >= res.total;
+        saveResources();
+      });
+
+      item.appendChild(checkbox);
+      item.appendChild(label);
+      item.appendChild(input);
+      list.appendChild(item);
+    });
+  }
+
+  function addResource() {
+    const nameInput = document.getElementById("new-name");
+    const totalInput = document.getElementById("new-total");
+
+    const name = nameInput.value.trim();
+    const total = parseInt(totalInput.value);
+
+    if (!name || isNaN(total) || total <= 0) {
+      alert("Please enter a valid name and number.");
+      return;
+    }
+
+    resources.push({ name, total, have: 0 });
+    saveResources();
+    renderResources();
+
+    nameInput.value = '';
+    totalInput.value = '';
+  }
+
+  // Initial render
+  renderResources();
+</script>
+
+</body>
+</html>
