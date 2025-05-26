@@ -12,7 +12,7 @@
     }
 
     .checklist {
-      max-width: 600px;
+      max-width: 700px;
       margin: auto;
       background: #ffffff;
       padding: 1.5rem;
@@ -22,10 +22,6 @@
 
     .checklist h2 {
       text-align: center;
-      color: #0056b3;
-    }
-    .checklist h3 {
-      text-align: right;
       margin-bottom: 1.5rem;
       color: #0056b3;
     }
@@ -34,11 +30,12 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 1.2rem;
+      margin-bottom: 1rem;
       padding: 0.6rem 0.8rem;
       border: 1px solid #d0e0ff;
       border-radius: 8px;
       background: #f8fbff;
+      gap: 10px;
     }
 
     .item label {
@@ -50,11 +47,8 @@
     .item input[type="number"] {
       width: 100px;
       padding: 6px;
-      margin-left: 10px;
       border-radius: 4px;
       border: 1px solid #a0c8ff;
-      background: #ffffff;
-      color: #003366;
     }
 
     .item input[type="checkbox"] {
@@ -66,7 +60,6 @@
       background-color: white;
       display: grid;
       place-content: center;
-      margin-right: 8px;
     }
 
     .item input[type="checkbox"]::before {
@@ -86,10 +79,29 @@
       cursor: default;
     }
 
-    .add-resource {
+    .delete-btn {
+      background-color: #ff4d4d;
+      border: none;
+      color: white;
+      padding: 5px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .delete-btn svg {
+      width: 16px;
+      height: 16px;
+      fill: white;
+    }
+
+    .add-resource,
+    .export-import {
       display: flex;
       gap: 10px;
-      margin-top: 2rem;
+      margin-top: 1.5rem;
     }
 
     .add-resource input {
@@ -99,7 +111,8 @@
       border: 1px solid #a0c8ff;
     }
 
-    .add-resource button {
+    .add-resource button,
+    .export-import button {
       padding: 8px 16px;
       background-color: #007bff;
       color: white;
@@ -109,21 +122,33 @@
       transition: background 0.2s;
     }
 
-    .add-resource button:hover {
+    .add-resource button:hover,
+    .export-import button:hover {
       background-color: #0056b3;
+    }
+
+    input[type="file"] {
+      display: none;
     }
   </style>
 </head>
 <body>
 
+<!-- Same HTML <head> and styles as before, just below the body content: -->
 <div class="checklist">
-  <h2>Minecraft Resource Checklist</h2> <h3>- by golden ≧◡≦</h3>
+  <h2>Resource Checklist</h2>
   <div id="resource-list"></div>
 
   <div class="add-resource">
     <input type="text" id="new-name" placeholder="Resource name">
     <input type="number" id="new-total" placeholder="Amount needed" min="1">
     <button onclick="addResource()">Add</button>
+  </div>
+
+  <div class="export-import">
+    <button onclick="exportResources()">Export</button>
+    <button onclick="document.getElementById('import-file').click()">Import</button>
+    <input type="file" id="import-file" accept=".json" onchange="importResources(event)">
   </div>
 </div>
 
@@ -133,6 +158,12 @@
 
   function saveResources() {
     localStorage.setItem('resources', JSON.stringify(resources));
+  }
+
+  function formatTime(seconds) {
+    const m = Math.floor(seconds / 60);
+    const s = Math.floor(seconds % 60);
+    return `${m}m ${s}s`;
   }
 
   function renderResources() {
@@ -149,7 +180,9 @@
       checkbox.checked = res.have >= res.total;
 
       const label = document.createElement("label");
-      label.innerHTML = `${res.name} (${res.total}): <span id="remaining-${index}">${res.total - res.have}</span> left`;
+      label.innerHTML = `${res.name} (${res.total}): 
+        <span id="remaining-${index}">${res.total - res.have}</span> left 
+        — ⏱ <span id="eta-${index}">${formatTime((res.total - res.have) / (res.rate || 1))}</span>`;
 
       const input = document.createElement("input");
       input.type = "number";
@@ -157,16 +190,42 @@
       input.value = res.have;
       input.placeholder = "You have";
       input.addEventListener("input", () => {
-        const value = parseInt(input.value) || 0;
-        res.have = value;
-        document.getElementById(`remaining-${index}`).textContent = Math.max(res.total - res.have, 0);
+        res.have = parseInt(input.value) || 0;
+        const remaining = Math.max(res.total - res.have, 0);
+        document.getElementById(`remaining-${index}`).textContent = remaining;
+        document.getElementById(`eta-${index}`).textContent = formatTime(remaining / (res.rate || 1));
         checkbox.checked = res.have >= res.total;
         saveResources();
       });
 
+      const rateInput = document.createElement("input");
+      rateInput.type = "number";
+      rateInput.value = res.rate || 1;
+      rateInput.min = 0.1;
+      rateInput.title = "Gather rate (units/second)";
+      rateInput.style.width = "70px";
+      rateInput.addEventListener("input", () => {
+        res.rate = parseFloat(rateInput.value) || 1;
+        const remaining = Math.max(res.total - res.have, 0);
+        document.getElementById(`eta-${index}`).textContent = formatTime(remaining / res.rate);
+        saveResources();
+      });
+
+      const deleteBtn = document.createElement("button");
+      deleteBtn.className = "delete-btn";
+      deleteBtn.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+          <path d="M3 6h18M9 6v12m6-12v12M10 10v6m4-6v6M5 6h14l-1.5 12.5a1 1 0 0 1-1 .5H7a1 1 0 0 1-1-.5L5 6z"/>
+        </svg>
+      `;
+      deleteBtn.onclick = () => deleteResource(index);
+
       item.appendChild(checkbox);
       item.appendChild(label);
       item.appendChild(input);
+      item.appendChild(rateInput);
+      item.appendChild(deleteBtn);
+
       list.appendChild(item);
     });
   }
@@ -183,7 +242,7 @@
       return;
     }
 
-    resources.push({ name, total, have: 0 });
+    resources.push({ name, total, have: 0, rate: 1 });
     saveResources();
     renderResources();
 
@@ -191,9 +250,54 @@
     totalInput.value = '';
   }
 
-  // Initial render
+  function deleteResource(index) {
+    if (confirm("Delete this resource?")) {
+      resources.splice(index, 1);
+      saveResources();
+      renderResources();
+    }
+  }
+
+  function exportResources() {
+    const blob = new Blob([JSON.stringify(resources, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "resources.json";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function importResources(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const data = JSON.parse(e.target.result);
+        if (Array.isArray(data)) {
+          resources.splice(0, resources.length, ...data.map(r => ({
+            name: r.name,
+            total: r.total,
+            have: r.have || 0,
+            rate: r.rate || 1
+          })));
+          saveResources();
+          renderResources();
+        } else {
+          alert("Invalid file format.");
+        }
+      } catch {
+        alert("Error reading file.");
+      }
+    };
+    reader.readAsText(file);
+  }
+
   renderResources();
 </script>
+
 
 </body>
 </html>
